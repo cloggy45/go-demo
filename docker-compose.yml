@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  random-generator:
+    build:
+      context: .
+      dockerfile: random-generator/Dockerfile
+    container_name: random-generator
+    environment:
+      - GRPC_HOST=0.0.0.0
+      - GRPC_PORT=50051
+    ports:
+      - "50052:50051"
+    networks:
+      - microservice-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rest-gateway:
+    build:
+      context: .
+      dockerfile: rest-gateway/Dockerfile
+    container_name: rest-gateway
+    environment:
+      - REST_HOST=0.0.0.0
+      - REST_PORT=8080
+      - GENERATOR_HOST=random-generator
+      - GENERATOR_PORT=50051
+    ports:
+      - "8081:8080"
+    networks:
+      - microservice-network
+    depends_on:
+      random-generator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  microservice-network:
+    driver: bridge 

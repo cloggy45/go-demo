@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package random;
+
+option go_package = "github.com/user/proto/random";
+
+// RandomService provides APIs to generate random numbers and strings
+service RandomService {
+  // GetRandomNumber returns a random integer within the specified range
+  rpc GetRandomNumber(NumberRequest) returns (NumberResponse) {}
+  
+  // GetRandomString returns a random string of the specified length
+  rpc GetRandomString(StringRequest) returns (StringResponse) {}
+}
+
+// NumberRequest contains parameters for generating a random number
+message NumberRequest {
+  int32 min = 1;  // Minimum value (inclusive)
+  int32 max = 2;  // Maximum value (inclusive)
+}
+
+// NumberResponse contains the generated random number
+message NumberResponse {
+  int32 value = 1;  // The generated random number
+}
+
+// StringRequest contains parameters for generating a random string
+message StringRequest {
+  int32 length = 1;       // Length of the random string to generate
+  bool include_digits = 2; // Whether to include digits in the random string
+  bool include_special = 3; // Whether to include special characters
+}
+
+// StringResponse contains the generated random string
+message StringResponse {
+  string value = 1;  // The generated random string
+} 

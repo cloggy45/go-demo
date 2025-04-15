@@ -1,0 +1,31 @@
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Go modules 
+vendor/
+
+# Docker
+.dockerignore
+*.env
+
+# Go Binary
+/bin/
+/pkg/
+
+# IDE/Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db 
