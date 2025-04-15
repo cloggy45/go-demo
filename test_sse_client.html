@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Streaming Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.5;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        #controls {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f8f8f8;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-left: 4px solid #4CAF50;
+        }
+        #events {
+            margin-bottom: 15px;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        .event {
+            margin-bottom: 5px;
+            padding: 8px;
+            background-color: white;
+            border-radius: 4px;
+            border-left: 3px solid #2196F3;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .chart {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: white;
+            margin-top: 20px;
+        }
+        #chart {
+            width: 100%;
+            height: 300px;
+        }
+        .event-connected {
+            border-left: 3px solid #4CAF50;
+        }
+        .event-error {
+            border-left: 3px solid #f44336;
+        }
+        .event-incomplete {
+            border-left: 3px solid #ff9800;
+            background-color: #fff8e1;
+        }
+        
+        .data-summary {
+            background-color: #f1f8e9;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .data-summary .stat {
+            text-align: center;
+        }
+        
+        .data-summary .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .data-summary .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+        /* Chart styling */
+        .line {
+            fill: none;
+            stroke: steelblue;
+            stroke-width: 2;
+        }
+        .dots circle {
+            fill: steelblue;
+            stroke: white;
+            stroke-width: 1px;
+            transition: r 0.2s;
+        }
+        .dots circle:hover {
+            r: 6;
+            fill: #ff7f0e;
+            cursor: pointer;
+        }
+        .axis-label {
+            font-size: 12px;
+            fill: #666;
+        }
+        .x-axis path, .y-axis path,
+        .x-axis line, .y-axis line {
+            stroke: #ddd;
+        }
+        .x-axis text, .y-axis text {
+            fill: #666;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SSE Streaming Test Client</h1>
+    
+    <div id="controls">
+        <button id="connect">Connect</button>
+        <button id="disconnect" disabled>Disconnect</button>
+        <button id="clear">Clear Events</button>
+        <input type="text" id="serverUrl" value="http://localhost:8085/stream" style="width: 300px; padding: 8px;" placeholder="Server URL">
+    </div>
+    
+    <div id="status">Not connected</div>
+    
+    <div id="latest-value" style="margin-bottom: 15px; padding: 15px; background-color: #e8f5e9; border-left: 4px solid #4CAF50; display: none;">
+        <div>Latest Value: <span id="value-display" style="font-size: 24px; font-weight: bold;">0</span></div>
+        <div>Time: <span id="time-display">-</span></div>
+        <div>Sequence: <span id="sequence-display">0</span></div>
+    </div>
+    
+    <div id="data-summary" class="data-summary" style="display: none;">
+        <div class="stat">
+            <div class="stat-value" id="total-events">0</div>
+            <div class="stat-label">Total Events</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="complete-events">0</div>
+            <div class="stat-label">Complete</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="incomplete-events">0</div>
+            <div class="stat-label">Timestamp Only</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="charted-points">0</div>
+            <div class="stat-label">Charted Points</div>
+        </div>
+    </div>
+    
+    <h2>Events</h2>
+    <div id="events"></div>
+    
+    <div class="chart">
+        <h2>Live Chart</h2>
+        <div id="chart"></div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+        let eventSource = null;
+        let eventCount = 0;
+        const maxEvents = 100;
+        const dataPoints = [];
+        const maxDataPoints = 100;
+        
+        document.getElementById('connect').addEventListener('click', connect);
+        document.getElementById('disconnect').addEventListener('click', disconnect);
+        document.getElementById('clear').addEventListener('click', clearEvents);
+        
+        // Add counters for event statistics
+        let totalEvents = 0;
+        let completeEvents = 0;
+        let incompleteEvents = 0;
+        
+        function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            
+            // Close any existing connection
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            // Reset data and statistics
+            dataPoints.length = 0;
+            totalEvents = 0;
+            completeEvents = 0;
+            incompleteEvents = 0;
+            updateStatistics();
+            
+            // Create new EventSource
+            eventSource = new EventSource(serverUrl);
+            
+            // Set up event listeners
+            eventSource.addEventListener('open', function(e) {
+                updateStatus('Connected to SSE stream');
+                document.getElementById('connect').disabled = true;
+                document.getElementById('disconnect').disabled = false;
+            });
+            
+            eventSource.addEventListener('connected', function(e) {
+                const data = JSON.parse(e.data);
+                logEvent('Connected', data, 'event-connected');
+            });
+            
+            eventSource.addEventListener('data', function(e) {
+                const data = JSON.parse(e.data);
+                totalEvents++;
+                
+                // Check if the data has a value property
+                if (data.value !== undefined) {
+                    completeEvents++;
+                    logEvent('Data', data);
+                    
+                    // Add data point to chart - ensure value is a number
+                    const value = Number(data.value);
+                    
+                    // Fix for truncated timestamps: if timestamp is too short, multiply to get milliseconds
+                    let timestamp = data.timestamp;
+                    if (timestamp < 10000000000) { // Less than 10 billion means it's probably seconds, not milliseconds
+                        timestamp = timestamp * 1000;
+                    }
+                    
+                    dataPoints.push({
+                        timestamp: timestamp,
+                        value: value,
+                        sequence: data.sequence || null
+                    });
+                    
+                    // Update the latest value display
+                    document.getElementById('value-display').textContent = value;
+                    document.getElementById('time-display').textContent = new Date(timestamp).toLocaleTimeString();
+                    document.getElementById('sequence-display').textContent = data.sequence || 'N/A';
+                    document.getElementById('latest-value').style.display = 'block';
+                    
+                    // Limit number of data points
+                    if (dataPoints.length > maxDataPoints) {
+                        dataPoints.shift();
+                    }
+                    
+                    // Update chart
+                    updateChart();
+                    
+                    // Log for debugging
+                    console.log("Added data point:", { timestamp, value });
+                } else {
+                    incompleteEvents++;
+                    logEvent('Data (Incomplete)', data, 'event-incomplete');
+                    console.log('Received data event without value property:', data);
+                    // Optionally update status to show incomplete data points
+                    const statusDiv = document.getElementById('status');
+                    statusDiv.textContent = 'Received incomplete data at: ' + new Date(data.timestamp).toLocaleTimeString();
+                }
+                
+                updateStatistics();
+            });
+            
+            eventSource.addEventListener('error', function(e) {
+                logEvent('Error', e, 'event-error');
+                updateStatus('Error connecting to SSE stream');
+                document.getElementById('connect').disabled = false;
+                document.getElementById('disconnect').disabled = true;
+            });
+        }
+        
+        function disconnect() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                updateStatus('Disconnected');
+                document.getElementById('connect').disabled = false;
+                document.getElementById('disconnect').disabled = true;
+                
+                // Hide the latest value display
+                document.getElementById('latest-value').style.display = 'none';
+            }
+        }
+        
+        function logEvent(type, data, className = '') {
+            eventCount++;
+            const eventsDiv = document.getElementById('events');
+            
+            // Create event div
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event ${className}`;
+            
+            // Format timestamp
+            const timestamp = new Date().toISOString();
+            
+            // Format event content
+            let content = `<strong>${type}</strong> [${timestamp}]<br>`;
+            if (typeof data === 'object') {
+                content += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } else {
+                content += `<pre>${data}</pre>`;
+            }
+            
+            eventDiv.innerHTML = content;
+            eventsDiv.prepend(eventDiv);
+            
+            // Limit number of events
+            if (eventCount > maxEvents) {
+                eventsDiv.removeChild(eventsDiv.lastChild);
+            }
+        }
+        
+        function clearEvents() {
+            document.getElementById('events').innerHTML = '';
+            eventCount = 0;
+            
+            // Optionally reset statistics if needed
+            // totalEvents = 0;
+            // completeEvents = 0;
+            // incompleteEvents = 0;
+            // updateStatistics();
+        }
+        
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+        
+        // Setup D3.js chart
+        const margin = {top: 20, right: 20, bottom: 30, left: 50};
+        const width = 900 - margin.left - margin.right;
+        const height = 300 - margin.top - margin.bottom;
+        
+        const svg = d3.select("#chart").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Setup scales
+        const x = d3.scaleTime().range([0, width]);
+        const y = d3.scaleLinear().range([height, 0]);
+        
+        // Setup line
+        const line = d3.line()
+            .x(d => x(new Date(d.timestamp)))
+            .y(d => y(d.value))
+            .curve(d3.curveMonotoneX);
+        
+        // Add x-axis
+        const xAxis = svg.append("g")
+            .attr("class", "x-axis")
+            .attr("transform", `translate(0,${height})`);
+        
+        // Add x-axis label
+        svg.append("text")
+            .attr("transform", `translate(${width/2}, ${height + margin.bottom})`)
+            .style("text-anchor", "middle")
+            .attr("class", "axis-label")
+            .text("Time");
+        
+        // Add y-axis
+        const yAxis = svg.append("g")
+            .attr("class", "y-axis");
+            
+        // Add y-axis label
+        svg.append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 0 - margin.left)
+            .attr("x", 0 - (height / 2))
+            .attr("dy", "1em")
+            .attr("class", "axis-label")
+            .style("text-anchor", "middle")
+            .text("Value");
+        
+        // Add path for line
+        const path = svg.append("path")
+            .attr("class", "line")
+            .attr("fill", "none")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 2);
+            
+        // Add container for the dots
+        const dots = svg.append("g")
+            .attr("class", "dots");
+
+        function updateChart() {
+            // Filter out data points without values
+            const validDataPoints = dataPoints.filter(d => d.value !== undefined && d.value !== null && !isNaN(d.value));
+            
+            if (validDataPoints.length === 0) return;
+            
+            // Debug information
+            console.log(`Updating chart with ${validDataPoints.length} valid points out of ${dataPoints.length} total`);
+            console.log(`First point: ${JSON.stringify(validDataPoints[0])}`);
+            console.log(`Last point: ${JSON.stringify(validDataPoints[validDataPoints.length-1])}`);
+            
+            // Ensure all dates are properly formatted
+            const dates = validDataPoints.map(d => new Date(d.timestamp));
+            console.log("First date:", dates[0]);
+            console.log("Last date:", dates[dates.length-1]);
+            
+            // Update scales - ensure timestamps are converted to dates properly
+            const timeExtent = d3.extent(dates);
+            console.log("Time extent:", timeExtent);
+            x.domain(timeExtent);
+            
+            // Ensure we have a proper y domain with some padding
+            const maxVal = d3.max(validDataPoints, d => Number(d.value));
+            const minVal = d3.min(validDataPoints, d => Number(d.value));
+            const padding = (maxVal - minVal) * 0.1 || 5; // 10% padding or default 5
+            
+            y.domain([Math.max(0, minVal - padding), maxVal + padding]);
+            
+            // Update axes
+            xAxis.call(d3.axisBottom(x));
+            yAxis.call(d3.axisLeft(y));
+            
+            // Update line
+            path.datum(validDataPoints)
+                .attr("d", line);
+                
+            // Update dots
+            // Join new data with old elements
+            const dot = dots.selectAll("circle")
+                .data(validDataPoints);
+                
+            // Enter new elements
+            dot.enter()
+                .append("circle")
+                .attr("r", 3.5)
+                .attr("fill", "steelblue")
+                .merge(dot) // Merge enter and update selections
+                .attr("cx", d => x(new Date(d.timestamp)))
+                .attr("cy", d => y(d.value));
+                
+            // Remove old elements
+            dot.exit().remove();
+        }
+
+        function updateStatistics() {
+            document.getElementById('total-events').textContent = totalEvents;
+            document.getElementById('complete-events').textContent = completeEvents;
+            document.getElementById('incomplete-events').textContent = incompleteEvents;
+            document.getElementById('charted-points').textContent = dataPoints.length;
+            document.getElementById('data-summary').style.display = 'flex';
+        }
+    </script>
+</body>
+</html> 

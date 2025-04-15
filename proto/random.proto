@@ -11,6 +11,10 @@ service RandomService {
   
   // GetRandomString returns a random string of the specified length
   rpc GetRandomString(StringRequest) returns (StringResponse) {}
+
+  // StreamRandomData streams time-series data for visualization
+  // This is a server-streaming RPC method that continuously sends data points
+  rpc StreamRandomData(StreamRequest) returns (stream DataPoint) {}
 }
 
 // NumberRequest contains parameters for generating a random number
@@ -34,4 +38,34 @@ message StringRequest {
 // StringResponse contains the generated random string
 message StringResponse {
   string value = 1;  // The generated random string
+}
+
+// StreamRequest contains parameters for the data streaming service
+message StreamRequest {
+  DataType data_type = 1;  // Type of data to stream
+  int32 frequency_ms = 2;  // Frequency of data points in milliseconds (default 1000)
+  int32 min_value = 3;     // Minimum value for numeric data (default 0)
+  int32 max_value = 4;     // Maximum value for numeric data (default 100)
+  int32 history_size = 5;  // Number of historical points to include in first response (default 0)
+}
+
+// DataType specifies the type of data to stream
+enum DataType {
+  NUMERIC = 0;     // Stream numeric data (integers)
+  PERCENTAGE = 1;  // Stream percentage values (0-100)
+  BOOLEAN = 2;     // Stream boolean values
+}
+
+// DataPoint represents a single data point in the time series
+message DataPoint {
+  int64 timestamp = 1;   // Unix timestamp in milliseconds
+  int64 sequence = 2;    // Sequence number for ordering
+  oneof value {
+    int32 numeric_value = 3;    // Numeric value
+    float float_value = 4;      // Float value (for percentages)
+    bool boolean_value = 5;     // Boolean value
+  }
+  string label = 6;      // Optional label for this data point
+  string series = 7;     // Series identifier for multi-series data
+  map<string, string> metadata = 8; // Optional metadata for visualization
 } 

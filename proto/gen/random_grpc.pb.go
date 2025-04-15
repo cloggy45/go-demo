@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RandomService_GetRandomNumber_FullMethodName = "/random.RandomService/GetRandomNumber"
-	RandomService_GetRandomString_FullMethodName = "/random.RandomService/GetRandomString"
+	RandomService_GetRandomNumber_FullMethodName  = "/random.RandomService/GetRandomNumber"
+	RandomService_GetRandomString_FullMethodName  = "/random.RandomService/GetRandomString"
+	RandomService_StreamRandomData_FullMethodName = "/random.RandomService/StreamRandomData"
 )
 
 // RandomServiceClient is the client API for RandomService service.
@@ -33,6 +34,9 @@ type RandomServiceClient interface {
 	GetRandomNumber(ctx context.Context, in *NumberRequest, opts ...grpc.CallOption) (*NumberResponse, error)
 	// GetRandomString returns a random string of the specified length
 	GetRandomString(ctx context.Context, in *StringRequest, opts ...grpc.CallOption) (*StringResponse, error)
+	// StreamRandomData streams time-series data for visualization
+	// This is a server-streaming RPC method that continuously sends data points
+	StreamRandomData(ctx context.Context, in *StreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DataPoint], error)
 }
 
 type randomServiceClient struct {
@@ -63,6 +67,25 @@ func (c *randomServiceClient) GetRandomString(ctx context.Context, in *StringReq
 	return out, nil
 }
 
+func (c *randomServiceClient) StreamRandomData(ctx context.Context, in *StreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DataPoint], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &RandomService_ServiceDesc.Streams[0], RandomService_StreamRandomData_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[StreamRequest, DataPoint]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type RandomService_StreamRandomDataClient = grpc.ServerStreamingClient[DataPoint]
+
 // RandomServiceServer is the server API for RandomService service.
 // All implementations must embed UnimplementedRandomServiceServer
 // for forward compatibility.
@@ -73,6 +96,9 @@ type RandomServiceServer interface {
 	GetRandomNumber(context.Context, *NumberRequest) (*NumberResponse, error)
 	// GetRandomString returns a random string of the specified length
 	GetRandomString(context.Context, *StringRequest) (*StringResponse, error)
+	// StreamRandomData streams time-series data for visualization
+	// This is a server-streaming RPC method that continuously sends data points
+	StreamRandomData(*StreamRequest, grpc.ServerStreamingServer[DataPoint]) error
 	mustEmbedUnimplementedRandomServiceServer()
 }
 
@@ -88,6 +114,9 @@ func (UnimplementedRandomServiceServer) GetRandomNumber(context.Context, *Number
 }
 func (UnimplementedRandomServiceServer) GetRandomString(context.Context, *StringRequest) (*StringResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRandomString not implemented")
+}
+func (UnimplementedRandomServiceServer) StreamRandomData(*StreamRequest, grpc.ServerStreamingServer[DataPoint]) error {
+	return status.Errorf(codes.Unimplemented, "method StreamRandomData not implemented")
 }
 func (UnimplementedRandomServiceServer) mustEmbedUnimplementedRandomServiceServer() {}
 func (UnimplementedRandomServiceServer) testEmbeddedByValue()                       {}
@@ -146,6 +175,17 @@ func _RandomService_GetRandomString_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RandomService_StreamRandomData_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(StreamRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(RandomServiceServer).StreamRandomData(m, &grpc.GenericServerStream[StreamRequest, DataPoint]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type RandomService_StreamRandomDataServer = grpc.ServerStreamingServer[DataPoint]
+
 // RandomService_ServiceDesc is the grpc.ServiceDesc for RandomService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -162,6 +202,12 @@ var RandomService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RandomService_GetRandomString_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StreamRandomData",
+			Handler:       _RandomService_StreamRandomData_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "random.proto",
 }

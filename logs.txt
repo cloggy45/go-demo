@@ -1,0 +1,115 @@
+[0;33mBuilding random-generator service...[0m
+[0;33mBuilding streaming service...[0m
+[0;33mStarting random-generator service...[0m
+[0;33mWaiting for gRPC server to start...[0m
+[2025-04-15 13:12:43.471] [INFO] [main] Starting random-generator service
+[2025-04-15 13:12:43.475] [INFO] [main] Log level set to INFO
+[2025-04-15 13:12:43.480] [INFO] [main] Server will listen on 0.0.0.0:50051
+[2025-04-15 13:12:43.480] [INFO] [main] gRPC server started on 0.0.0.0:50051
+[2025-04-15 13:12:43.480] [INFO] [main] Starting health check server on 0.0.0.0:8080
+[0;32mgRPC server started successfully[0m
+[0;33mStarting streaming service...[0m
+[0;33mWaiting for SSE server to start...[0m
+2025/04/15 13:12:45 Starting streaming service
+2025/04/15 13:12:45 Connecting to gRPC server at localhost:50051
+2025/04/15 13:12:45 Connected to gRPC server at localhost:50051
+2025/04/15 13:12:45 GetRandomNumber response: 5 (took 4.399791ms)
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /health                   --> github.com/user/streaming-service/server.(*SSEServer).healthHandler-fm (4 handlers)
+[GIN-debug] GET    /stream                   --> github.com/user/streaming-service/server.(*SSEServer).streamHandler-fm (4 handlers)
+[GIN-debug] GET    /metrics                  --> github.com/user/streaming-service/server.(*SSEServer).metricsHandler-fm (4 handlers)
+2025/04/15 13:12:45 Starting data stream bridge: type=NUMERIC, frequency=1000ms, range=[0,100], history=5
+2025/04/15 13:12:45 Starting SSE server at http://0.0.0.0:8085
+2025/04/15 13:12:45 Starting SSE server at http://0.0.0.0:8085
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on 0.0.0.0:8085
+2025/04/15 13:12:45 Starting data stream: type=NUMERIC, frequency=1000ms, range=[0,100], history=5
+[2025-04-15 13:12:45.591] [INFO] [random-server] Stream started: client=[::1]:57792, type=NUMERIC, frequency=1000ms, range=[0,100], history=5, resolution=raw
+2025/04/15 13:12:47 New SSE client connected: ::1-1744719167052531000 from ::1
+2025/04/15 13:12:47 New SSE client connected: ::1-1744719167052529000 from ::1
+[0;32mSSE server started successfully[0m
+[0;33mChecking SSE server health...[0m
+2025/04/15 13:12:47 Health check request from ::1
+[GIN] 2025/04/15 - 13:12:47 | 200 |     127.292µs |             ::1 | GET      "/health"
+[0;32mSSE server health check passed[0m
+[0;33mOpening test client in browser...[0m
+[0;32mAll services started successfully[0m
+[0;33mPress Ctrl+C to stop all services[0m
+2025/04/15 13:12:50 New SSE client connected: ::1-1744719170047576000 from ::1
+2025/04/15 13:12:51 New SSE client connected: ::1-1744719171644173000 from ::1
+2025/04/15 13:13:00 SSE clients connected: 4
+2025/04/15 13:13:14 New SSE client connected: ::1-1744719194363485000 from ::1
+2025/04/15 13:13:15 SSE clients connected: 5
+2025/04/15 13:13:30 SSE clients connected: 5
+2025/04/15 13:13:45 SSE clients connected: 5
+2025/04/15 13:14:00 SSE clients connected: 5
+2025/04/15 13:14:15 SSE clients connected: 5
+2025/04/15 13:14:19 Received data point: seq=100, value=34, ts=1970-01-01 01:29:04.719259591 +0100 BST
+2025/04/15 13:14:19 Broadcast message sequence 100 to 5 clients
+2025/04/15 13:14:30 SSE clients connected: 5
+2025/04/15 13:14:45 SSE clients connected: 5
+2025/04/15 13:15:00 SSE clients connected: 5
+2025/04/15 13:15:15 SSE clients connected: 5
+2025/04/15 13:15:30 SSE clients connected: 5
+2025/04/15 13:15:45 SSE clients connected: 5
+2025/04/15 13:15:59 Received data point: seq=200, value=96, ts=1970-01-01 01:29:04.719359591 +0100 BST
+2025/04/15 13:15:59 Broadcast message sequence 200 to 5 clients
+2025/04/15 13:16:00 SSE clients connected: 5
+2025/04/15 13:16:15 SSE clients connected: 5
+2025/04/15 13:16:30 SSE clients connected: 5
+2025/04/15 13:16:45 SSE clients connected: 5
+2025/04/15 13:17:00 SSE clients connected: 5
+2025/04/15 13:17:15 SSE clients connected: 5
+2025/04/15 13:17:30 SSE clients connected: 5
+2025/04/15 13:17:39 Received data point: seq=300, value=91, ts=1970-01-01 01:29:04.71945959 +0100 BST
+2025/04/15 13:17:39 Broadcast message sequence 300 to 5 clients
+2025/04/15 13:17:45 SSE clients connected: 5
+2025/04/15 13:18:00 SSE clients connected: 5
+[2025-04-15 13:18:03.590] [INFO] [random-server] Client disconnected: id=stream-1, code=Unavailable, error=rpc error: code = Unavailable desc = transport is closing
+[2025-04-15 13:18:03.590] [INFO] [random-server] Stream ended: client=[::1]:57792, id=stream-1, points_sent=322, duration=318.00s, points_per_sec=1.01, remaining_streams=0
+2025/04/15 13:18:04 Stream error: error receiving data point: rpc error: code = Unavailable desc = closing transport due to: connection error: desc = "error reading from server: EOF", received prior goaway: code: NO_ERROR, debug data: "max_age"
+2025/04/15 13:18:04 Retry 1/10 after 5s
+2025/04/15 13:18:09 Starting data stream: type=NUMERIC, frequency=1000ms, range=[0,100], history=5
+[2025-04-15 13:18:09.469] [INFO] [random-server] Stream started: client=[::1]:58000, type=NUMERIC, frequency=1000ms, range=[0,100], history=5, resolution=raw
+2025/04/15 13:18:15 SSE clients connected: 5
+2025/04/15 13:18:30 SSE clients connected: 5
+2025/04/15 13:18:45 SSE clients connected: 5
+2025/04/15 13:19:00 SSE clients connected: 5
+2025/04/15 13:19:15 SSE clients connected: 5
+2025/04/15 13:19:19 Received data point: seq=400, value=33, ts=1970-01-01 01:29:04.71955947 +0100 BST
+2025/04/15 13:19:19 Broadcast message sequence 400 to 5 clients
+2025/04/15 13:19:30 SSE clients connected: 5
+2025/04/15 13:19:45 SSE clients connected: 5
+2025/04/15 13:20:00 SSE clients connected: 5
+2025/04/15 13:20:15 SSE clients connected: 5
+2025/04/15 13:20:30 SSE clients connected: 5
+2025/04/15 13:20:45 SSE clients connected: 5
+2025/04/15 13:20:59 Received data point: seq=500, value=85, ts=1970-01-01 01:29:04.71965947 +0100 BST
+2025/04/15 13:20:59 Broadcast message sequence 500 to 5 clients
+2025/04/15 13:21:00 SSE clients connected: 5
+2025/04/15 13:21:15 SSE clients connected: 5
+2025/04/15 13:21:30 SSE clients connected: 5
+2025/04/15 13:21:45 SSE clients connected: 5
+2025/04/15 13:22:00 SSE clients connected: 5
+2025/04/15 13:22:15 SSE clients connected: 5
+2025/04/15 13:22:30 SSE clients connected: 5
+2025/04/15 13:22:39 Received data point: seq=600, value=99, ts=1970-01-01 01:29:04.719759469 +0100 BST
+2025/04/15 13:22:39 Broadcast message sequence 600 to 5 clients
+2025/04/15 13:22:45 SSE clients connected: 5
+2025/04/15 13:23:00 SSE clients connected: 5
+2025/04/15 13:23:03 Client ::1-1744719171644173000 disconnected
+2025/04/15 13:23:03 Removed client ::1-1744719171644173000
+[GIN] 2025/04/15 - 13:23:03 | 200 |        10m12s |             ::1 | GET      "/stream"
+2025/04/15 13:23:15 SSE clients connected: 4
+2025/04/15 13:23:21 Stream error: error receiving data point: rpc error: code = Unavailable desc = error reading from server: EOF
+2025/04/15 13:23:21 Retry 2/10 after 5s
+./test_sse_bridge.sh: line 94:  7680 Killed: 9               ./random-generator  (wd: ~/Desktop/go-demo/random-generator)
+./test_sse_bridge.sh: line 94:  7690 Killed: 9               ./streaming-service  (wd: ~/Desktop/go-demo/streaming-service)
+Cleaning up...
+Done

@@ -42,6 +42,29 @@ services:
       timeout: 5s
       retries: 5
 
+  streaming-service:
+    build:
+      context: .
+      dockerfile: streaming-service/Dockerfile
+    container_name: streaming-service
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8085
+      - GENERATOR_HOST=random-generator
+      - GENERATOR_PORT=50051
+    ports:
+      - "8085:8085"
+    networks:
+      - microservice-network
+    depends_on:
+      random-generator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   microservice-network:
     driver: bridge 

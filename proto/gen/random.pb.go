@@ -21,6 +21,56 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// DataType specifies the type of data to stream
+type DataType int32
+
+const (
+	DataType_NUMERIC    DataType = 0 // Stream numeric data (integers)
+	DataType_PERCENTAGE DataType = 1 // Stream percentage values (0-100)
+	DataType_BOOLEAN    DataType = 2 // Stream boolean values
+)
+
+// Enum value maps for DataType.
+var (
+	DataType_name = map[int32]string{
+		0: "NUMERIC",
+		1: "PERCENTAGE",
+		2: "BOOLEAN",
+	}
+	DataType_value = map[string]int32{
+		"NUMERIC":    0,
+		"PERCENTAGE": 1,
+		"BOOLEAN":    2,
+	}
+)
+
+func (x DataType) Enum() *DataType {
+	p := new(DataType)
+	*p = x
+	return p
+}
+
+func (x DataType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DataType) Descriptor() protoreflect.EnumDescriptor {
+	return file_random_proto_enumTypes[0].Descriptor()
+}
+
+func (DataType) Type() protoreflect.EnumType {
+	return &file_random_proto_enumTypes[0]
+}
+
+func (x DataType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DataType.Descriptor instead.
+func (DataType) EnumDescriptor() ([]byte, []int) {
+	return file_random_proto_rawDescGZIP(), []int{0}
+}
+
 // NumberRequest contains parameters for generating a random number
 type NumberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -225,6 +275,246 @@ func (x *StringResponse) GetValue() string {
 	return ""
 }
 
+// StreamRequest contains parameters for the data streaming service
+type StreamRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DataType      DataType               `protobuf:"varint,1,opt,name=data_type,json=dataType,proto3,enum=random.DataType" json:"data_type,omitempty"` // Type of data to stream
+	FrequencyMs   int32                  `protobuf:"varint,2,opt,name=frequency_ms,json=frequencyMs,proto3" json:"frequency_ms,omitempty"`             // Frequency of data points in milliseconds (default 1000)
+	MinValue      int32                  `protobuf:"varint,3,opt,name=min_value,json=minValue,proto3" json:"min_value,omitempty"`                      // Minimum value for numeric data (default 0)
+	MaxValue      int32                  `protobuf:"varint,4,opt,name=max_value,json=maxValue,proto3" json:"max_value,omitempty"`                      // Maximum value for numeric data (default 100)
+	HistorySize   int32                  `protobuf:"varint,5,opt,name=history_size,json=historySize,proto3" json:"history_size,omitempty"`             // Number of historical points to include in first response (default 0)
+	StartTime     int64                  `protobuf:"varint,6,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`                   // Start time for historical data (Unix milliseconds, 0 = now)
+	EndTime       int64                  `protobuf:"varint,7,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`                         // End time for historical data (Unix milliseconds, 0 = indefinite)
+	Resolution    int32                  `protobuf:"varint,8,opt,name=resolution,proto3" json:"resolution,omitempty"`                                  // Data resolution - points per time unit (default 1 = every point)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamRequest) Reset() {
+	*x = StreamRequest{}
+	mi := &file_random_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamRequest) ProtoMessage() {}
+
+func (x *StreamRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_random_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamRequest.ProtoReflect.Descriptor instead.
+func (*StreamRequest) Descriptor() ([]byte, []int) {
+	return file_random_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *StreamRequest) GetDataType() DataType {
+	if x != nil {
+		return x.DataType
+	}
+	return DataType_NUMERIC
+}
+
+func (x *StreamRequest) GetFrequencyMs() int32 {
+	if x != nil {
+		return x.FrequencyMs
+	}
+	return 0
+}
+
+func (x *StreamRequest) GetMinValue() int32 {
+	if x != nil {
+		return x.MinValue
+	}
+	return 0
+}
+
+func (x *StreamRequest) GetMaxValue() int32 {
+	if x != nil {
+		return x.MaxValue
+	}
+	return 0
+}
+
+func (x *StreamRequest) GetHistorySize() int32 {
+	if x != nil {
+		return x.HistorySize
+	}
+	return 0
+}
+
+func (x *StreamRequest) GetStartTime() int64 {
+	if x != nil {
+		return x.StartTime
+	}
+	return 0
+}
+
+func (x *StreamRequest) GetEndTime() int64 {
+	if x != nil {
+		return x.EndTime
+	}
+	return 0
+}
+
+func (x *StreamRequest) GetResolution() int32 {
+	if x != nil {
+		return x.Resolution
+	}
+	return 0
+}
+
+// DataPoint represents a single data point in the time series
+type DataPoint struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Timestamp int64                  `protobuf:"varint,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"` // Unix timestamp in milliseconds
+	Sequence  int64                  `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`   // Sequence number for ordering
+	// Types that are valid to be assigned to Value:
+	//
+	//	*DataPoint_NumericValue
+	//	*DataPoint_FloatValue
+	//	*DataPoint_BooleanValue
+	Value         isDataPoint_Value `protobuf_oneof:"value"`
+	Label         string            `protobuf:"bytes,6,opt,name=label,proto3" json:"label,omitempty"`                                                                                 // Optional label for this data point
+	Series        string            `protobuf:"bytes,7,opt,name=series,proto3" json:"series,omitempty"`                                                                               // Series identifier for multi-series data
+	Metadata      map[string]string `protobuf:"bytes,8,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Optional metadata for visualization
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DataPoint) Reset() {
+	*x = DataPoint{}
+	mi := &file_random_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DataPoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DataPoint) ProtoMessage() {}
+
+func (x *DataPoint) ProtoReflect() protoreflect.Message {
+	mi := &file_random_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DataPoint.ProtoReflect.Descriptor instead.
+func (*DataPoint) Descriptor() ([]byte, []int) {
+	return file_random_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DataPoint) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *DataPoint) GetSequence() int64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *DataPoint) GetValue() isDataPoint_Value {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *DataPoint) GetNumericValue() int32 {
+	if x != nil {
+		if x, ok := x.Value.(*DataPoint_NumericValue); ok {
+			return x.NumericValue
+		}
+	}
+	return 0
+}
+
+func (x *DataPoint) GetFloatValue() float32 {
+	if x != nil {
+		if x, ok := x.Value.(*DataPoint_FloatValue); ok {
+			return x.FloatValue
+		}
+	}
+	return 0
+}
+
+func (x *DataPoint) GetBooleanValue() bool {
+	if x != nil {
+		if x, ok := x.Value.(*DataPoint_BooleanValue); ok {
+			return x.BooleanValue
+		}
+	}
+	return false
+}
+
+func (x *DataPoint) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *DataPoint) GetSeries() string {
+	if x != nil {
+		return x.Series
+	}
+	return ""
+}
+
+func (x *DataPoint) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type isDataPoint_Value interface {
+	isDataPoint_Value()
+}
+
+type DataPoint_NumericValue struct {
+	NumericValue int32 `protobuf:"varint,3,opt,name=numeric_value,json=numericValue,proto3,oneof"` // Numeric value
+}
+
+type DataPoint_FloatValue struct {
+	FloatValue float32 `protobuf:"fixed32,4,opt,name=float_value,json=floatValue,proto3,oneof"` // Float value (for percentages)
+}
+
+type DataPoint_BooleanValue struct {
+	BooleanValue bool `protobuf:"varint,5,opt,name=boolean_value,json=booleanValue,proto3,oneof"` // Boolean value
+}
+
+func (*DataPoint_NumericValue) isDataPoint_Value() {}
+
+func (*DataPoint_FloatValue) isDataPoint_Value() {}
+
+func (*DataPoint_BooleanValue) isDataPoint_Value() {}
+
 var File_random_proto protoreflect.FileDescriptor
 
 const file_random_proto_rawDesc = "" +
@@ -240,10 +530,42 @@ const file_random_proto_rawDesc = "" +
 	"\x0einclude_digits\x18\x02 \x01(\bR\rincludeDigits\x12'\n" +
 	"\x0finclude_special\x18\x03 \x01(\bR\x0eincludeSpecial\"&\n" +
 	"\x0eStringResponse\x12\x14\n" +
-	"\x05value\x18\x01 \x01(\tR\x05value2\x97\x01\n" +
+	"\x05value\x18\x01 \x01(\tR\x05value\"\x98\x02\n" +
+	"\rStreamRequest\x12-\n" +
+	"\tdata_type\x18\x01 \x01(\x0e2\x10.random.DataTypeR\bdataType\x12!\n" +
+	"\ffrequency_ms\x18\x02 \x01(\x05R\vfrequencyMs\x12\x1b\n" +
+	"\tmin_value\x18\x03 \x01(\x05R\bminValue\x12\x1b\n" +
+	"\tmax_value\x18\x04 \x01(\x05R\bmaxValue\x12!\n" +
+	"\fhistory_size\x18\x05 \x01(\x05R\vhistorySize\x12\x1d\n" +
+	"\n" +
+	"start_time\x18\x06 \x01(\x03R\tstartTime\x12\x19\n" +
+	"\bend_time\x18\a \x01(\x03R\aendTime\x12\x1e\n" +
+	"\n" +
+	"resolution\x18\b \x01(\x05R\n" +
+	"resolution\"\xe7\x02\n" +
+	"\tDataPoint\x12\x1c\n" +
+	"\ttimestamp\x18\x01 \x01(\x03R\ttimestamp\x12\x1a\n" +
+	"\bsequence\x18\x02 \x01(\x03R\bsequence\x12%\n" +
+	"\rnumeric_value\x18\x03 \x01(\x05H\x00R\fnumericValue\x12!\n" +
+	"\vfloat_value\x18\x04 \x01(\x02H\x00R\n" +
+	"floatValue\x12%\n" +
+	"\rboolean_value\x18\x05 \x01(\bH\x00R\fbooleanValue\x12\x14\n" +
+	"\x05label\x18\x06 \x01(\tR\x05label\x12\x16\n" +
+	"\x06series\x18\a \x01(\tR\x06series\x12;\n" +
+	"\bmetadata\x18\b \x03(\v2\x1f.random.DataPoint.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\a\n" +
+	"\x05value*4\n" +
+	"\bDataType\x12\v\n" +
+	"\aNUMERIC\x10\x00\x12\x0e\n" +
+	"\n" +
+	"PERCENTAGE\x10\x01\x12\v\n" +
+	"\aBOOLEAN\x10\x022\xd9\x01\n" +
 	"\rRandomService\x12B\n" +
 	"\x0fGetRandomNumber\x12\x15.random.NumberRequest\x1a\x16.random.NumberResponse\"\x00\x12B\n" +
-	"\x0fGetRandomString\x12\x15.random.StringRequest\x1a\x16.random.StringResponse\"\x00B\x1eZ\x1cgithub.com/user/proto/randomb\x06proto3"
+	"\x0fGetRandomString\x12\x15.random.StringRequest\x1a\x16.random.StringResponse\"\x00\x12@\n" +
+	"\x10StreamRandomData\x12\x15.random.StreamRequest\x1a\x11.random.DataPoint\"\x000\x01B\x1eZ\x1cgithub.com/user/proto/randomb\x06proto3"
 
 var (
 	file_random_proto_rawDescOnce sync.Once
@@ -257,23 +579,32 @@ func file_random_proto_rawDescGZIP() []byte {
 	return file_random_proto_rawDescData
 }
 
-var file_random_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_random_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_random_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_random_proto_goTypes = []any{
-	(*NumberRequest)(nil),  // 0: random.NumberRequest
-	(*NumberResponse)(nil), // 1: random.NumberResponse
-	(*StringRequest)(nil),  // 2: random.StringRequest
-	(*StringResponse)(nil), // 3: random.StringResponse
+	(DataType)(0),          // 0: random.DataType
+	(*NumberRequest)(nil),  // 1: random.NumberRequest
+	(*NumberResponse)(nil), // 2: random.NumberResponse
+	(*StringRequest)(nil),  // 3: random.StringRequest
+	(*StringResponse)(nil), // 4: random.StringResponse
+	(*StreamRequest)(nil),  // 5: random.StreamRequest
+	(*DataPoint)(nil),      // 6: random.DataPoint
+	nil,                    // 7: random.DataPoint.MetadataEntry
 }
 var file_random_proto_depIdxs = []int32{
-	0, // 0: random.RandomService.GetRandomNumber:input_type -> random.NumberRequest
-	2, // 1: random.RandomService.GetRandomString:input_type -> random.StringRequest
-	1, // 2: random.RandomService.GetRandomNumber:output_type -> random.NumberResponse
-	3, // 3: random.RandomService.GetRandomString:output_type -> random.StringResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: random.StreamRequest.data_type:type_name -> random.DataType
+	7, // 1: random.DataPoint.metadata:type_name -> random.DataPoint.MetadataEntry
+	1, // 2: random.RandomService.GetRandomNumber:input_type -> random.NumberRequest
+	3, // 3: random.RandomService.GetRandomString:input_type -> random.StringRequest
+	5, // 4: random.RandomService.StreamRandomData:input_type -> random.StreamRequest
+	2, // 5: random.RandomService.GetRandomNumber:output_type -> random.NumberResponse
+	4, // 6: random.RandomService.GetRandomString:output_type -> random.StringResponse
+	6, // 7: random.RandomService.StreamRandomData:output_type -> random.DataPoint
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_random_proto_init() }
@@ -281,18 +612,24 @@ func file_random_proto_init() {
 	if File_random_proto != nil {
 		return
 	}
+	file_random_proto_msgTypes[5].OneofWrappers = []any{
+		(*DataPoint_NumericValue)(nil),
+		(*DataPoint_FloatValue)(nil),
+		(*DataPoint_BooleanValue)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_random_proto_rawDesc), len(file_random_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   4,
+			NumEnums:      1,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_random_proto_goTypes,
 		DependencyIndexes: file_random_proto_depIdxs,
+		EnumInfos:         file_random_proto_enumTypes,
 		MessageInfos:      file_random_proto_msgTypes,
 	}.Build()
 	File_random_proto = out.File

@@ -4,6 +4,7 @@ This project demonstrates a minimal microservice architecture using Go, gRPC, an
 
 - A gRPC-based microservice (`random-generator`) that generates random data
 - A REST API gateway (`rest-gateway`) that consumes the gRPC service internally
+- A streaming service (`streaming-service`) that provides SSE streaming of data from the gRPC service
 - Docker and Docker Compose for containerization and orchestration
 
 ## Architecture
@@ -14,6 +15,7 @@ The architecture consists of:
    - Internal service that generates random numbers and strings
    - Exposes a gRPC API for internal communication
    - Runs on port 50051 internally
+   - Acts as the data source for both the REST gateway and streaming service
 
 2. **REST Gateway Service (HTTP)**
    - External-facing service that provides a REST API
@@ -21,25 +23,54 @@ The architecture consists of:
    - Translates REST requests to gRPC calls
    - Runs on port 8080 internally (exposed as 8081)
 
+3. **Streaming Service (SSE)**
+   - External-facing service that provides Server-Sent Events (SSE) streaming
+   - Communicates with the random-generator service via gRPC
+   - Consumes the continuous data stream from the random-generator service
+   - Translates gRPC data streams to SSE events for real-time client consumption
+   - Maintains persistent connections with web clients using SSE protocol
+   - Runs on port 8085 internally (exposed as 8085)
+
+### Data Flow
+
+The data flow in the system works as follows:
+
+1. The **Random Generator Service** continuously generates random data points
+2. The **Streaming Service** connects to the Random Generator Service via gRPC
+3. The Streaming Service establishes a stream that receives data points in real time
+4. When web clients connect to the Streaming Service's `/stream` endpoint via SSE:
+   - Each client establishes a persistent HTTP connection
+   - The Streaming Service forwards data from the gRPC stream to connected clients as SSE events
+   - Clients (like the test_sse_client.html) receive and visualize this data in real time
+
+This architecture enables efficient real-time data streaming from the backend to web clients with minimal latency.
+
 ## Prerequisites
 
 - Docker and Docker Compose
-- Go 1.22 or later (for local development)
+- Go 1.23 or later (for local development)
 - `protoc` compiler (only needed for regenerating protocol buffers)
 
 ## Project Structure
 
 ```
-├── proto/                 # Protocol Buffers definitions
-│   ├── random.proto       # Service and message definitions
-│   └── gen/               # Generated Go code
-├── random-generator/      # gRPC Service
-│   ├── main.go            # Service implementation
-│   └── Dockerfile         # Container definition
-├── rest-gateway/          # REST API Service
-│   ├── main.go            # REST API implementation
-│   └── Dockerfile         # Container definition
-└── docker-compose.yml     # Service orchestration
+├── proto/                   # Protocol Buffers definitions
+│   ├── random.proto         # Service and message definitions
+│   └── gen/                 # Generated Go code
+├── random-generator/        # gRPC Service
+│   ├── main.go              # Service implementation
+│   └── Dockerfile           # Container definition
+├── rest-gateway/            # REST API Service
+│   ├── main.go              # REST API implementation
+│   └── Dockerfile           # Container definition
+├── streaming-service/       # SSE Streaming Service
+│   ├── main.go              # Service implementation
+│   ├── server/              # SSE server implementation
+│   ├── client/              # gRPC client implementation
+│   ├── config/              # Configuration handling
+│   └── Dockerfile           # Container definition
+├── test_sse_client.html     # Test client for SSE streaming
+└── docker-compose.yml       # Service orchestration
 ```
 
 ## Building and Running
@@ -71,6 +102,13 @@ For the REST Gateway service:
 
 ```bash
 cd rest-gateway
+go run main.go
+```
+
+For the Streaming Service:
+
+```bash
+cd streaming-service
 go run main.go
 ```
 
@@ -132,6 +170,74 @@ Response:
   "include_special": false
 }
 ```
+
+### Streaming Service (SSE)
+
+Base URL: `http://localhost:8085`
+
+#### Health Check
+
+```bash
+curl http://localhost:8085/health
+```
+
+Response:
+```json
+{
+  "status": "ok",
+  "time": "2025-04-15T13:25:47Z"
+}
+```
+
+#### Metrics
+
+```bash
+curl http://localhost:8085/metrics
+```
+
+Response:
+```json
+{
+  "clients": 1,
+  "messages_sent": 0,
+  "uptime": 375
+}
+```
+
+#### SSE Stream
+
+To consume the SSE stream programmatically:
+
+```javascript
+const eventSource = new EventSource('http://localhost:8085/stream');
+
+eventSource.addEventListener('data', function(e) {
+  const data = JSON.parse(e.data);
+  console.log('Received data:', data);
+});
+
+eventSource.addEventListener('error', function(e) {
+  console.error('Error:', e);
+});
+```
+
+### Test SSE Client
+
+The project includes a test client for the SSE streaming service. To use it:
+
+1. Start the services using Docker Compose
+2. Open the `test_sse_client.html` file in a web browser
+3. Click the "Connect" button (the default URL is already set to `http://localhost:8085/stream`)
+
+Features of the test client:
+
+- Real-time data visualization with a live chart
+- Event log with timestamps
+- Statistics showing total events, complete events, and incomplete events
+- Display of the latest received value
+- Ability to disconnect and reconnect to the stream
+
+The chart will show the random numeric values over time, updating in real-time as data is received from the streaming service.
 
 ## License
 
