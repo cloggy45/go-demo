@@ -127,6 +127,37 @@
             fill: #666;
             font-size: 10px;
         }
+        
+        /* View finder (brush) styling */
+        .brush .selection {
+            fill: #c3d7f1;
+            fill-opacity: 0.3;
+            stroke: #2196F3;
+            stroke-width: 1px;
+        }
+        
+        .brush .handle {
+            fill: #4285f4;
+            stroke: #2962ff;
+            stroke-width: 1px;
+        }
+        
+        .context .line {
+            stroke: #90caf9;
+            stroke-width: 1px;
+        }
+        
+        /* Tooltip styling */
+        .tooltip {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 8px;
+            pointer-events: none;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -182,6 +213,13 @@
         const dataPoints = [];
         const maxDataPoints = 100;
         
+        // Add support for multiple streams
+        const streams = {
+            'Stream0': { color: '#2196F3', data: [] },
+            'Stream1': { color: '#90CAF9', data: [] },
+            'Stream2': { color: '#FFA726', data: [] }
+        };
+        
         document.getElementById('connect').addEventListener('click', connect);
         document.getElementById('disconnect').addEventListener('click', disconnect);
         document.getElementById('clear').addEventListener('click', clearEvents);
@@ -204,6 +242,12 @@
             totalEvents = 0;
             completeEvents = 0;
             incompleteEvents = 0;
+            
+            // Clear all stream data
+            Object.keys(streams).forEach(key => {
+                streams[key].data = [];
+            });
+            
             updateStatistics();
             
             // Create new EventSource
@@ -235,15 +279,47 @@
                     
                     // Fix for truncated timestamps: if timestamp is too short, multiply to get milliseconds
                     let timestamp = data.timestamp;
+                    if (typeof timestamp === 'string') {
+                        timestamp = parseInt(timestamp, 10);
+                    }
                     if (timestamp < 10000000000) { // Less than 10 billion means it's probably seconds, not milliseconds
                         timestamp = timestamp * 1000;
                     }
                     
+                    // Determine which stream to add the data to (using sequence as a simple way to distribute)
+                    const streamName = data.stream || `Stream${data.sequence % 3}`;
+                    if (!streams[streamName]) {
+                        streams[streamName] = {
+                            color: getRandomColor(),
+                            data: []
+                        };
+                    }
+                    
+                    // Add data to specific stream
+                    streams[streamName].data.push({
+                        timestamp: timestamp,
+                        value: value,
+                        sequence: data.sequence || null,
+                        stream: streamName
+                    });
+                    
+                    // Also add to main dataPoints array for backward compatibility
                     dataPoints.push({
                         timestamp: timestamp,
                         value: value,
-                        sequence: data.sequence || null
+                        sequence: data.sequence || null,
+                        stream: streamName
                     });
+                    
+                    // Limit number of data points per stream
+                    if (streams[streamName].data.length > maxDataPoints) {
+                        streams[streamName].data.shift();
+                    }
+                    
+                    // Limit number of data points in main array
+                    if (dataPoints.length > maxDataPoints) {
+                        dataPoints.shift();
+                    }
                     
                     // Update the latest value display
                     document.getElementById('value-display').textContent = value;
@@ -251,16 +327,11 @@
                     document.getElementById('sequence-display').textContent = data.sequence || 'N/A';
                     document.getElementById('latest-value').style.display = 'block';
                     
-                    // Limit number of data points
-                    if (dataPoints.length > maxDataPoints) {
-                        dataPoints.shift();
-                    }
-                    
                     // Update chart
                     updateChart();
                     
                     // Log for debugging
-                    console.log("Added data point:", { timestamp, value });
+                    console.log("Added data point to " + streamName + ":", { timestamp, value });
                 } else {
                     incompleteEvents++;
                     logEvent('Data (Incomplete)', data, 'event-incomplete');
@@ -342,40 +413,75 @@
         const width = 900 - margin.left - margin.right;
         const height = 300 - margin.top - margin.bottom;
         
+        // Add margin for focus and context charts
+        const margin2 = {top: 320, right: 20, bottom: 30, left: 50};
+        const height2 = 80; // Height for the context chart
+        
         const svg = d3.select("#chart").append("svg")
             .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
+            .attr("height", height + margin.top + margin.bottom + height2 + 30)
             .append("g")
             .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Clip path for main chart
+        svg.append("defs").append("clipPath")
+            .attr("id", "clip")
+            .append("rect")
+            .attr("width", width)
+            .attr("height", height);
+        
+        // Add legend
+        const legend = svg.append("g")
+            .attr("class", "legend")
+            .attr("transform", `translate(${width - 150}, 10)`);
         
         // Setup scales
         const x = d3.scaleTime().range([0, width]);
         const y = d3.scaleLinear().range([height, 0]);
+        
+        // Scales for context chart (view finder)
+        const x2 = d3.scaleTime().range([0, width]);
+        const y2 = d3.scaleLinear().range([height2, 0]);
         
         // Setup line
         const line = d3.line()
             .x(d => x(new Date(d.timestamp)))
             .y(d => y(d.value))
             .curve(d3.curveMonotoneX);
+            
+        // Setup line for context chart
+        const line2 = d3.line()
+            .x(d => x2(new Date(d.timestamp)))
+            .y(d => y2(d.value))
+            .curve(d3.curveMonotoneX);
+        
+        // Group for the main chart (focus)
+        const focus = svg.append("g")
+            .attr("class", "focus");
+        
+        // Group for the context chart (view finder)
+        const context = svg.append("g")
+            .attr("class", "context")
+            .attr("transform", `translate(0,${margin2.top})`);
         
         // Add x-axis
-        const xAxis = svg.append("g")
+        const xAxis = focus.append("g")
             .attr("class", "x-axis")
             .attr("transform", `translate(0,${height})`);
         
         // Add x-axis label
-        svg.append("text")
+        focus.append("text")
             .attr("transform", `translate(${width/2}, ${height + margin.bottom})`)
             .style("text-anchor", "middle")
             .attr("class", "axis-label")
             .text("Time");
         
         // Add y-axis
-        const yAxis = svg.append("g")
+        const yAxis = focus.append("g")
             .attr("class", "y-axis");
             
         // Add y-axis label
-        svg.append("text")
+        focus.append("text")
             .attr("transform", "rotate(-90)")
             .attr("y", 0 - margin.left)
             .attr("x", 0 - (height / 2))
@@ -384,69 +490,271 @@
             .style("text-anchor", "middle")
             .text("Value");
         
-        // Add path for line
-        const path = svg.append("path")
+        // Add x-axis for context chart
+        const xAxis2 = context.append("g")
+            .attr("class", "x-axis")
+            .attr("transform", `translate(0,${height2})`);
+        
+        // Add path for line (focus)
+        const path = focus.append("path")
             .attr("class", "line")
+            .attr("clip-path", "url(#clip)")
             .attr("fill", "none")
             .attr("stroke", "steelblue")
             .attr("stroke-width", 2);
             
+        // Add path for line (context)
+        const path2 = context.append("path")
+            .attr("class", "line")
+            .attr("fill", "none")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 1);
+            
         // Add container for the dots
-        const dots = svg.append("g")
-            .attr("class", "dots");
+        const dots = focus.append("g")
+            .attr("class", "dots")
+            .attr("clip-path", "url(#clip)");
+            
+        // Create tooltip div
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+            
+        // Create brush for the context chart
+        const brush = d3.brushX()
+            .extent([[0, 0], [width, height2]])
+            .on("brush end", brushed);
+            
+        // Add the brush to the context chart
+        const brushGroup = context.append("g")
+            .attr("class", "brush")
+            .call(brush);
+            
+        // Initialize brush to select a visible range
+        function initializeBrush(domain) {
+            if (!domain || domain.length !== 2) return;
+            
+            // Set initial brush selection to the full range
+            const pixelRange = [0, width];
+            brushGroup.call(brush.move, pixelRange);
+        }
+
+        // Function to handle brushing event
+        function brushed(event) {
+            if (event.sourceEvent && event.sourceEvent.type === "zoom") return; // ignore brush-by-zoom
+            
+            // Get the selection from the brush
+            const selection = event.selection;
+            if (selection) {
+                // Convert the brush selection from pixels to time values
+                const [x0, x1] = selection.map(x2.invert);
+                
+                // Update the x domain of the focus chart
+                x.domain([x0, x1]);
+                console.log("Brush updated domain to:", [x0, x1]);
+            } else {
+                // If the brush is cleared, reset to the full domain
+                x.domain(x2.domain());
+                console.log("Brush cleared, reset to full domain:", x2.domain());
+            }
+            
+            // Update all streams in the focus chart
+            redrawFocusChart();
+        }
+        
+        // Function to redraw the focus chart (used by both brush and updates)
+        function redrawFocusChart() {
+            // Update the focus chart lines
+            focus.selectAll(".stream-line").each(function() {
+                d3.select(this).attr("d", line);
+            });
+            
+            // Update x-axis
+            focus.select(".x-axis").call(d3.axisBottom(x));
+            
+            // Update all dots
+            dots.selectAll("circle")
+                .attr("cx", d => x(new Date(d.timestamp)))
+                .attr("cy", d => y(d.value));
+        }
 
         function updateChart() {
             // Filter out data points without values
             const validDataPoints = dataPoints.filter(d => d.value !== undefined && d.value !== null && !isNaN(d.value));
             
-            if (validDataPoints.length === 0) return;
+            if (validDataPoints.length === 0) {
+                console.warn("No valid data points to display");
+                return;
+            }
             
             // Debug information
             console.log(`Updating chart with ${validDataPoints.length} valid points out of ${dataPoints.length} total`);
-            console.log(`First point: ${JSON.stringify(validDataPoints[0])}`);
-            console.log(`Last point: ${JSON.stringify(validDataPoints[validDataPoints.length-1])}`);
             
             // Ensure all dates are properly formatted
-            const dates = validDataPoints.map(d => new Date(d.timestamp));
+            const dates = validDataPoints.map(d => {
+                const date = new Date(d.timestamp);
+                // Check if date is valid
+                if (isNaN(date.getTime())) {
+                    console.error("Invalid date from timestamp:", d.timestamp);
+                    return null;
+                }
+                return date;
+            }).filter(d => d !== null);
+            
+            if (dates.length === 0) {
+                console.error("No valid dates found in data");
+                return;
+            }
+            
             console.log("First date:", dates[0]);
             console.log("Last date:", dates[dates.length-1]);
             
-            // Update scales - ensure timestamps are converted to dates properly
+            // Update scales for both charts - ensure timestamps are converted to dates properly
             const timeExtent = d3.extent(dates);
             console.log("Time extent:", timeExtent);
-            x.domain(timeExtent);
+            
+            // Always update the context chart's domain to show all data
+            x2.domain(timeExtent);
+            
+            // Initialize brush if this is the first data
+            if (dataPoints.length > 0 && dataPoints.length <= maxDataPoints) {
+                initializeBrush(timeExtent);
+            }
+            
+            // Only update the focus domain if there's no active brush
+            const brushSelection = d3.select(".brush .selection").empty();
+            console.log("Brush selection empty:", brushSelection);
+            if (brushSelection) {
+                // If selection is empty (no brush active), update the domain
+                x.domain(timeExtent);
+                console.log("Setting x domain to full extent:", timeExtent);
+            } else {
+                console.log("Using brushed domain:", x.domain());
+            }
             
             // Ensure we have a proper y domain with some padding
             const maxVal = d3.max(validDataPoints, d => Number(d.value));
             const minVal = d3.min(validDataPoints, d => Number(d.value));
-            const padding = (maxVal - minVal) * 0.1 || 5; // 10% padding or default 5
+            console.log("Y value range:", minVal, "to", maxVal);
             
-            y.domain([Math.max(0, minVal - padding), maxVal + padding]);
+            const padding = (maxVal - minVal) * 0.1 || 5; // 10% padding or default 5
+            const yMin = Math.max(0, minVal - padding);
+            const yMax = maxVal + padding;
+            console.log("Setting y domain to:", yMin, "to", yMax);
+            
+            y.domain([yMin, yMax]);
+            y2.domain([yMin, yMax]);
             
             // Update axes
             xAxis.call(d3.axisBottom(x));
             yAxis.call(d3.axisLeft(y));
+            xAxis2.call(d3.axisBottom(x2));
             
-            // Update line
-            path.datum(validDataPoints)
-                .attr("d", line);
+            // Log stream data
+            console.log("Streams data:", Object.entries(streams).map(([name, data]) => 
+                `${name}: ${data.data.length} points`
+            ));
+            
+            // Clear existing lines
+            focus.selectAll(".stream-line").remove();
+            context.selectAll(".stream-line").remove();
+            
+            // Draw a line for each stream in focus chart
+            let hasAddedLines = false;
+            Object.entries(streams).forEach(([streamName, streamData]) => {
+                if (streamData.data.length === 0) return;
                 
-            // Update dots
-            // Join new data with old elements
-            const dot = dots.selectAll("circle")
-                .data(validDataPoints);
+                hasAddedLines = true;
                 
-            // Enter new elements
-            dot.enter()
-                .append("circle")
-                .attr("r", 3.5)
-                .attr("fill", "steelblue")
-                .merge(dot) // Merge enter and update selections
-                .attr("cx", d => x(new Date(d.timestamp)))
-                .attr("cy", d => y(d.value));
+                // Make sure data is properly sorted by timestamp
+                const sortedData = [...streamData.data].sort((a, b) => 
+                    new Date(a.timestamp) - new Date(b.timestamp)
+                );
                 
-            // Remove old elements
-            dot.exit().remove();
+                focus.append("path")
+                    .datum(sortedData)
+                    .attr("class", "line stream-line")
+                    .attr("clip-path", "url(#clip)")
+                    .attr("fill", "none")
+                    .attr("stroke", streamData.color)
+                    .attr("stroke-width", 2)
+                    .attr("d", line);
+                    
+                // Draw line for context chart
+                context.append("path")
+                    .datum(sortedData)
+                    .attr("class", "line stream-line")
+                    .attr("fill", "none")
+                    .attr("stroke", streamData.color)
+                    .attr("stroke-width", 1)
+                    .attr("d", line2);
+            });
+            
+            // If we've added lines and updated the domains, make sure to redraw the focus chart
+            if (hasAddedLines) {
+                redrawFocusChart();
+            }
+            
+            // Update dots - group by stream
+            const dotsByStream = d3.group(validDataPoints, d => d.stream || 'Stream0');
+            
+            // Remove old dots
+            dots.selectAll("g").remove();
+            
+            // Create a group for each stream's dots
+            dotsByStream.forEach((streamPoints, streamName) => {
+                const streamColor = streams[streamName]?.color || 'steelblue';
+                const streamDots = dots.append("g")
+                    .attr("class", `stream-dots-${streamName}`);
+                    
+                streamDots.selectAll("circle")
+                    .data(streamPoints)
+                    .enter()
+                    .append("circle")
+                    .attr("r", 3.5)
+                    .attr("fill", streamColor)
+                    .attr("cx", d => x(new Date(d.timestamp)))
+                    .attr("cy", d => y(d.value))
+                    .on("mouseover", function(event, d) {
+                        d3.select(this).attr("r", 6).attr("fill", "#ff7f0e");
+                        
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                            
+                        tooltip.html(`Stream: ${d.stream || 'Stream0'}<br>Value: ${d.value}<br>Time: ${new Date(d.timestamp).toLocaleString()}<br>Seq: ${d.sequence || 'N/A'}`)
+                            .style("left", (event.pageX + 10) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this).attr("r", 3.5).attr("fill", streamColor);
+                        
+                        tooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+            });
+            
+            // Update legend
+            legend.selectAll("*").remove();
+            
+            const activeStreams = Object.entries(streams).filter(([_, data]) => data.data.length > 0);
+            
+            activeStreams.forEach(([streamName, streamData], i) => {
+                const legendItem = legend.append("g")
+                    .attr("transform", `translate(0, ${i * 20})`);
+                    
+                legendItem.append("circle")
+                    .attr("r", 6)
+                    .attr("fill", streamData.color);
+                    
+                legendItem.append("text")
+                    .attr("x", 10)
+                    .attr("y", 4)
+                    .text(streamName)
+                    .style("font-size", "12px")
+                    .style("fill", "#666");
+            });
         }
 
         function updateStatistics() {
@@ -455,6 +763,11 @@
             document.getElementById('incomplete-events').textContent = incompleteEvents;
             document.getElementById('charted-points').textContent = dataPoints.length;
             document.getElementById('data-summary').style.display = 'flex';
+        }
+
+        function getRandomColor() {
+            const colors = ['#4CAF50', '#F44336', '#9C27B0', '#FFEB3B', '#FF9800', '#795548', '#9E9E9E', '#607D8B'];
+            return colors[Math.floor(Math.random() * colors.length)];
         }
     </script>
 </body>
